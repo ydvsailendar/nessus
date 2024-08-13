@@ -1,0 +1,46 @@
+services:
+  nessus:
+    image: tenable/nessus:10.8.1-ubuntu
+    container_name: nessus
+    restart: always
+    environment:
+      USERNAME: nessus
+      PASSWORD: ${NESSUS_ADMIN_PASSWORD}
+      ACTIVATION_CODE: ${NESSUS_ACTIVATION_CODE}
+      VIRTUAL_HOST: ${DOMAIN_NAME}
+      LETSENCRYPT_HOST: ${DOMAIN_NAME}
+      LETSENCRYPT_EMAIL: ${ADMIN_EMAIL}
+      VIRTUAL_PORT: 8834
+      VIRTUAL_PROTO: https
+
+  proxy:
+    image: nginxproxy/nginx-proxy:1.6
+    container_name: proxy
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - html:/usr/share/nginx/html
+      - certs:/etc/nginx/certs:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  letsencrypt:
+    image: nginxproxy/acme-companion:2.4
+    container_name: letsencrypt
+    restart: always
+    volumes_from:
+      - proxy
+    volumes:
+      - certs:/etc/nginx/certs:rw
+      - acme:/etc/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DEFAULT_EMAIL: ${ADMIN_EMAIL}
+    depends_on:
+      - proxy
+
+volumes:
+  acme:
+  certs:
+  html:
